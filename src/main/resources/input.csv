@@ -1,0 +1,10 @@
+Id|produktId|name|beschreibung|preis|bestand
+1|001|tshirt|red|12.12|7
+2|001|tshirt|black|10.22|5
+3|001|tshirt|blue|42.03|2
+4|001|tshirt|white|22.45|1
+5|002|jeans|blue|55.10|3
+6|002|jeans|white|65.33|2
+7|002|jeans|grey|42.50|0
+8|003|top|crop-top|11.22|0
+9|003|top|fullseleves|18.07|0
