@@ -8,8 +8,6 @@ import akka.http.scaladsl.model.HttpEntity.Chunked
 import akka.http.scaladsl.model.{ContentTypes, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.stream.alpakka.csv.scaladsl.{CsvParsing, CsvToMap}
-import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 
 import scala.concurrent.Future
@@ -48,7 +46,7 @@ class TestServer()(implicit val system: ActorSystem[_]) {
             put {
               entity(as[ByteString]) { data =>
                 onSuccess(parseAsCSV(data)) { performed =>
-                  complete((StatusCodes.OK))
+                  complete((StatusCodes.OK, performed))
                 }
               }
             }
@@ -64,10 +62,28 @@ class TestServer()(implicit val system: ActorSystem[_]) {
   }
 
   private def parseAsCSV(cvsData: ByteString) = {
-    val cvsFile = akka.stream.scaladsl.Source.single(cvsData)
-      .via(CsvParsing.lineScanner(delimiter = '|'))
-      .via(CsvToMap.toMap())
-      .runWith(Sink.seq)
-    cvsFile
+    Future.successful(writeToTempFile(cvsData.utf8String).getAbsolutePath)
+  }
+
+  import java.io.{File, PrintWriter}
+  def writeToTempFile(contents: String,
+                      prefix: Option[String] = None,
+                      suffix: Option[String] = None): File = {
+    val tempFi = File.createTempFile(prefix.getOrElse("prefix-"),
+      suffix.getOrElse("-suffix"))
+    tempFi.deleteOnExit()
+    new PrintWriter(tempFi) {
+      // Any statements inside the body of a class in scala are executed on construction.
+      // Therefore, the following try-finally block is executed immediately as we're creating
+      // a standard PrinterWriter (with its implementation) and then using it.
+      // Alternatively, we could have created the PrintWriter, assigned it a name,
+      // then called .write() and .close() on it. Here, we're simply opting for a terser representation.
+      try {
+        write(contents)
+      } finally {
+        close()
+      }
+    }
+    tempFi
   }
 }

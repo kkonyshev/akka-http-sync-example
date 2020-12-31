@@ -9,6 +9,7 @@ import akka.http.scaladsl.model.{ContentTypes, HttpResponse}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.OnSuccessMagnet
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.alpakka.csv.scaladsl.{CsvParsing, CsvToMap}
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
@@ -39,7 +40,7 @@ class SyncServer(config: Config)(implicit val system: ActorSystem[_]) {
         concat(
           get {
             onSuccess(OnSuccessMagnet(triggerSync())) { syncResponse =>
-              complete(syncResponse.status)
+              complete(syncResponse.status, Unmarshal(syncResponse).to[String])
             }
           }
         )
@@ -101,8 +102,9 @@ class SyncServer(config: Config)(implicit val system: ActorSystem[_]) {
       cvsProducts   <- Future.successful(products.foldLeft(List[String](Product.header))((a, b) => a ++ List(Product.toSVCLine(b))))
       uploadResult  <- {
         val productsUrl = config.getString("sync.routes.products.url")
+        val productsCSV = cvsProducts.mkString("\n")
         val httpRequest = Put(s"${productsUrl}/${cvsProducts.size - 1}")
-            .withEntity(ContentTypes.`text/csv(UTF-8)`, cvsProducts.mkString("\n"))
+            .withEntity(ContentTypes.`text/csv(UTF-8)`, productsCSV)
         Http().singleRequest(httpRequest)
       }
     } yield {
